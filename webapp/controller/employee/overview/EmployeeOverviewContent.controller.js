@@ -18,29 +18,64 @@ sap.ui.define([
 	return BaseController.extend("sap.ui.demo.nav.controller.employee.overview.EmployeeOverviewContent", {
 
 		onInit: function () {
+			var oRouter = this.getRouter();
+
 			this._oTable = this.byId("employeesTable");
 			this._oVSD = null;
 			this._sSortField = null;
 			this._bSortDescending = false;
 			this._aValidSortFields = ["EmployeeID", "FirstName", "LastName"];
 			this._sSearchQuery = null;
+			this._oRouterArgs = null;
 
 			this._initViewSettingsDialog();
+
+			oRouter.getRoute("employeeOverview").attachMatched(this._onRouteMatched, this);
+		},
+
+		_onRouteMatched: function (oEvent){
+			this._oRouterArgs = oEvent.getParameter("arguments");
+			this._oRouterArgs["?query"] = this._oRouterArgs["?query"] || {};
+			var oQueryParameter = this._oRouterArgs["?query"];
+
+			this._applySearchFilter(oQueryParameter.search);
+			this._applySorter(oQueryParameter.sortField,oQueryParameter.sortDescending);
+
+			if (oQueryParameter.showDialog){
+				this._oVSD.open();
+			}
 		},
 
 		onSortButtonPressed : function () {
-			this._oVSD.open();
+			//this._oVSD.open();
+			var oRouter = this.getRouter();
+			this._oRouterArgs["?query"].showDialog=1;
+			oRouter.navTo("employeeOverview",this._oRouterArgs);
 		},
 
 		onSearchEmployeesTable : function (oEvent) {
-			this._applySearchFilter( oEvent.getSource().getValue() );
+			var oRouter = this.getRouter();
+			
+			//this._applySearchFilter( oEvent.getSource().getValue() );
+
+			this._oRouterArgs["?query"].search = oEvent.getSource().getValue();
+			oRouter.navTo("employeeOverview",this._oRouterArgs,true);
 		},
 
 		_initViewSettingsDialog : function () {
+			var oRouter = this.getRouter();
 			this._oVSD = new ViewSettingsDialog("vsd", {
 				confirm: function (oEvent) {
 					var oSortItem = oEvent.getParameter("sortItem");
-					this._applySorter(oSortItem.getKey(), oEvent.getParameter("sortDescending"));
+					this._oRouterArgs["?query"].sortField = oSortItem.getKey();
+					this._oRouterArgs["?query"].sortDescending = oEvent.getParameter("sortDescending");
+					delete this._oRouterArgs["?query"].showDialog;
+					oRouter.navTo("employeeOverview",this._oRouterArgs,true);
+					//this._applySorter(oSortItem.getKey(), oEvent.getParameter("sortDescending"));
+				}.bind(this),
+				cancel: function(oEvent){
+					delete this._oRouterArgs["?query"].showDialog;
+					oRouter.navTo("employeeOverview",this._oRouterArgs,true)
 				}.bind(this)
 			});
 
